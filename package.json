@@ -35,6 +35,7 @@
     "test:unit:watch": "vitest"
   },
   "dependencies": {
+    "@cequenceai/mcp-remote": "^1.0.0-token-refresh.1",
     "express": "^4.21.2",
     "open": "^10.1.0",
     "strict-url-sanitise": "^0.0.1"

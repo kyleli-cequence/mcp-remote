@@ -617,6 +617,12 @@ export async function parseCommandLineArgs(args: string[], usage: string) {
     log(`Using authorize resource: ${authorizeResource}`)
   }
 
+  // Check for no-refresh flag
+  const noRefresh = args.includes('--no-refresh')
+  if (noRefresh) {
+    log('Token refresh disabled - will not request refresh_token grant type')
+  }
+
   if (!serverUrl) {
     log(usage)
     process.exit(1)
@@ -691,6 +697,7 @@ export async function parseCommandLineArgs(args: string[], usage: string) {
     staticOAuthClientMetadata,
     staticOAuthClientInfo,
     authorizeResource,
+    noRefresh,
   }
 }
 

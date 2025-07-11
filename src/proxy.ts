@@ -36,6 +36,7 @@ async function runProxy(
   staticOAuthClientMetadata: StaticOAuthClientMetadata,
   staticOAuthClientInfo: StaticOAuthClientInformationFull,
   authorizeResource: string,
+  noRefresh: boolean = false,
 ) {
   // Set up event emitter for auth flow
   const events = new EventEmitter()
@@ -55,6 +56,7 @@ async function runProxy(
     staticOAuthClientMetadata,
     staticOAuthClientInfo,
     authorizeResource,
+    noRefresh,
   })
 
   // Create the STDIO transport for local connections
@@ -143,7 +145,7 @@ to the CA certificate file. If using claude_desktop_config.json, this might look
 }
 
 // Parse command-line arguments and run the proxy
-parseCommandLineArgs(process.argv.slice(2), 'Usage: npx tsx proxy.ts <https://server-url> [callback-port] [--debug]')
+parseCommandLineArgs(process.argv.slice(2), 'Usage: npx tsx proxy.ts <https://server-url> [callback-port] [--debug] [--no-refresh]')
   .then(
     ({
       serverUrl,
@@ -155,6 +157,7 @@ parseCommandLineArgs(process.argv.slice(2), 'Usage: npx tsx proxy.ts <https://se
       staticOAuthClientMetadata,
       staticOAuthClientInfo,
       authorizeResource,
+      noRefresh,
     }) => {
       return runProxy(
         serverUrl,
@@ -165,6 +168,7 @@ parseCommandLineArgs(process.argv.slice(2), 'Usage: npx tsx proxy.ts <https://se
         staticOAuthClientMetadata,
         staticOAuthClientInfo,
         authorizeResource,
+        noRefresh,
       )
     },
   )

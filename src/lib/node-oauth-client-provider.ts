@@ -14,13 +14,6 @@ import { sanitizeUrl } from 'strict-url-sanitise'
 import { randomUUID } from 'node:crypto'
 
 /**
- * Extended OAuthTokens interface that includes absolute expiration time
- */
-interface ExtendedOAuthTokens extends OAuthTokens {
-  expires_at?: number // Absolute timestamp when the token expires
-}
-
-/**
  * Implements the OAuthClientProvider interface for Node.js environments.
  * Handles OAuth flow and token storage for MCP clients.
  */
@@ -58,10 +51,16 @@ export class NodeOAuthClientProvider implements OAuthClientProvider {
   }
 
   get clientMetadata() {
+    // Conditionally include refresh_token grant type based on noRefresh option
+    const grantTypes = ['authorization_code']
+    if (!this.options.noRefresh) {
+      grantTypes.push('refresh_token')
+    }
+
     return {
       redirect_uris: [this.redirectUrl],
       token_endpoint_auth_method: 'none',
-      grant_types: ['authorization_code', 'refresh_token'],
+      grant_types: grantTypes,
       response_types: ['code'],
       client_name: this.clientName,
       client_uri: this.clientUri,
@@ -73,82 +72,6 @@ export class NodeOAuthClientProvider implements OAuthClientProvider {
 
   state(): string {
     return this._state
-  }
-
-  /**
-   * Gets the client information for token refresh operations
-   * @returns The client information or throws an error if not available
-   */
-  private async getClientInformationForRefresh(): Promise<OAuthClientInformationFull> {
-    const clientInfo = await this.clientInformation()
-    if (!clientInfo) {
-      throw new Error('No client information available for token refresh')
-    }
-    return clientInfo
-  }
-
-  /**
-   * Refreshes an access token using a refresh token
-   * @param refreshToken The refresh token to use
-   * @returns The new OAuth tokens
-   */
-  private async refreshAccessToken(refreshToken: string): Promise<OAuthTokens> {
-    if (DEBUG) debugLog('Attempting to refresh access token')
-
-    const clientInfo = await this.getClientInformationForRefresh()
-
-    // For now, we'll construct the token endpoint based on the server URL
-    // This is a simplified approach - ideally we'd get this from OAuth discovery
-    const serverUrl = new URL(this.options.serverUrl)
-    const tokenEndpoint = `${serverUrl.protocol}//${serverUrl.host}/oauth/token`
-
-    const requestBody = new URLSearchParams({
-      grant_type: 'refresh_token',
-      refresh_token: refreshToken,
-      client_id: clientInfo.client_id,
-    })
-
-    // Add client_secret if available (for confidential clients)
-    if (clientInfo.client_secret) {
-      requestBody.append('client_secret', clientInfo.client_secret)
-    }
-
-    if (DEBUG) debugLog('Making token refresh request', { tokenEndpoint, clientId: clientInfo.client_id })
-
-    const response = await fetch(tokenEndpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        Accept: 'application/json',
-      },
-      body: requestBody,
-    })
-
-    if (!response.ok) {
-      const errorText = await response.text()
-      if (DEBUG) debugLog('Token refresh failed', { status: response.status, error: errorText })
-      throw new Error(`Token refresh failed: HTTP ${response.status} - ${errorText}`)
-    }
-
-    const tokenData = await response.json()
-
-    if (DEBUG)
-      debugLog('Token refresh successful', {
-        hasAccessToken: !!tokenData.access_token,
-        hasRefreshToken: !!tokenData.refresh_token,
-        expiresIn: tokenData.expires_in,
-      })
-
-    // Create new tokens object with absolute expiration time
-    const newTokens: OAuthTokens = {
-      access_token: tokenData.access_token,
-      refresh_token: tokenData.refresh_token || refreshToken, // Use new refresh token if provided, otherwise keep the old one
-      expires_in: tokenData.expires_in,
-      token_type: tokenData.token_type || 'Bearer',
-      scope: tokenData.scope,
-    }
-
-    return newTokens
   }
 
   /**
@@ -189,82 +112,32 @@ export class NodeOAuthClientProvider implements OAuthClientProvider {
       debugLog('Token request stack trace:', new Error().stack)
     }
 
-    const extendedTokens = await readJsonFile<ExtendedOAuthTokens>(this.serverUrlHash, 'tokens.json', OAuthTokensSchema)
-
-    if (!extendedTokens) {
-      if (DEBUG) debugLog('Token result: Not found')
-      return undefined
-    }
-
-    // Check if token is expired (with 5 minute buffer)
-    const REFRESH_BUFFER = 5 * 60 * 1000 // 5 minutes in milliseconds
-    const now = Date.now()
-    let isExpired = false
-
-    if (extendedTokens.expires_at) {
-      // Use absolute timestamp if available
-      isExpired = now >= extendedTokens.expires_at - REFRESH_BUFFER
-    } else if (extendedTokens.expires_in) {
-      // Fallback to expires_in if no absolute timestamp
-      isExpired = extendedTokens.expires_in <= 300 // 5 minutes
-    }
+    const tokens = await readJsonFile<OAuthTokens>(this.serverUrlHash, 'tokens.json', OAuthTokensSchema)
 
     if (DEBUG) {
-      const timeLeft = extendedTokens.expires_at ? Math.max(0, extendedTokens.expires_at - now) / 1000 : extendedTokens.expires_in || 0
+      if (tokens) {
+        const timeLeft = tokens.expires_in || 0
 
-      // Alert if expires_in is invalid
-      if (typeof extendedTokens.expires_in !== 'number' || extendedTokens.expires_in < 0) {
-        debugLog('⚠️ WARNING: Invalid expires_in detected while reading tokens ⚠️', {
-          expiresIn: extendedTokens.expires_in,
-          tokenObject: JSON.stringify(extendedTokens),
-          stack: new Error('Invalid expires_in value').stack,
-        })
-      }
-
-      debugLog('Token result:', {
-        found: true,
-        hasAccessToken: !!extendedTokens.access_token,
-        hasRefreshToken: !!extendedTokens.refresh_token,
-        expiresIn: `${timeLeft} seconds`,
-        isExpired: isExpired,
-        expiresInValue: extendedTokens.expires_in,
-        expiresAt: extendedTokens.expires_at ? new Date(extendedTokens.expires_at).toISOString() : undefined,
-      })
-    }
-
-    // If token is expired and we have a refresh token, try to refresh
-    if (isExpired && extendedTokens.refresh_token) {
-      if (DEBUG) debugLog('Token is expired, attempting refresh')
-
-      try {
-        const refreshedTokens = await this.refreshAccessToken(extendedTokens.refresh_token)
-        await this.saveTokens(refreshedTokens)
-
-        if (DEBUG) debugLog('Token refresh successful, returning refreshed tokens')
-        return refreshedTokens
-      } catch (error) {
-        if (DEBUG)
-          debugLog('Token refresh failed, returning undefined to trigger full re-auth', {
-            error: error instanceof Error ? error.message : String(error),
+        // Alert if expires_in is invalid
+        if (typeof tokens.expires_in !== 'number' || tokens.expires_in < 0) {
+          debugLog('⚠️ WARNING: Invalid expires_in detected while reading tokens ⚠️', {
+            expiresIn: tokens.expires_in,
+            tokenObject: JSON.stringify(tokens),
+            stack: new Error('Invalid expires_in value').stack,
           })
-        log('Token refresh failed, will need to re-authenticate:', error instanceof Error ? error.message : String(error))
-        return undefined
+        }
+
+        debugLog('Token result:', {
+          found: true,
+          hasAccessToken: !!tokens.access_token,
+          hasRefreshToken: !!tokens.refresh_token,
+          expiresIn: `${timeLeft} seconds`,
+          isExpired: timeLeft <= 0,
+          expiresInValue: tokens.expires_in,
+        })
+      } else {
+        debugLog('Token result: Not found')
       }
-    }
-
-    // Return the original tokens (converted back to OAuthTokens interface)
-    // Update expires_in to be the remaining time until expiration
-    let remainingExpiresIn = extendedTokens.expires_in
-    if (extendedTokens.expires_at) {
-      remainingExpiresIn = Math.max(0, Math.floor((extendedTokens.expires_at - now) / 1000))
-    }
-
-    const tokens: OAuthTokens = {
-      access_token: extendedTokens.access_token,
-      refresh_token: extendedTokens.refresh_token,
-      expires_in: remainingExpiresIn,
-      token_type: extendedTokens.token_type,
-      scope: extendedTokens.scope,
     }
 
     return tokens
@@ -275,15 +148,6 @@ export class NodeOAuthClientProvider implements OAuthClientProvider {
    * @param tokens The tokens to save
    */
   async saveTokens(tokens: OAuthTokens): Promise<void> {
-    // Convert expires_in to absolute timestamp
-    const now = Date.now()
-    const expiresAt = tokens.expires_in ? now + tokens.expires_in * 1000 : undefined
-
-    const extendedTokens: ExtendedOAuthTokens = {
-      ...tokens,
-      expires_at: expiresAt,
-    }
-
     if (DEBUG) {
       const timeLeft = tokens.expires_in || 0
 
@@ -301,11 +165,10 @@ export class NodeOAuthClientProvider implements OAuthClientProvider {
         hasRefreshToken: !!tokens.refresh_token,
         expiresIn: `${timeLeft} seconds`,
         expiresInValue: tokens.expires_in,
-        expiresAt: expiresAt ? new Date(expiresAt).toISOString() : undefined,
       })
     }
 
-    await writeJsonFile(this.serverUrlHash, 'tokens.json', extendedTokens)
+    await writeJsonFile(this.serverUrlHash, 'tokens.json', tokens)
   }
 
   /**
