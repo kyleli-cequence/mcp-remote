@@ -1,16 +1,20 @@
 {
-  "name": "@cequence/mcp-remote",
-  "version": "0.1.18",
-  "description": "Remote proxy for Model Context Protocol, allowing local-only clients to connect to remote servers using oAuth",
+  "name": "@cequenceai/mcp-remote",
+  "version": "1.0.0-token-refresh.1",
+  "description": "Remote proxy for Model Context Protocol, allowing local-only clients to connect to remote servers using oAuth with automatic token refresh",
   "keywords": [
     "mcp",
     "stdio",
     "sse",
     "remote",
-    "oauth"
+    "oauth",
+    "token-refresh"
   ],
-  "author": "Glen Maddern <glen@glenmaddern.com>",
-  "repository": "https://github.com/geelen/mcp-remote",
+  "author": "Cequence AI <info@cequence.ai>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cequenceai/mcp-remote-fork.git"
+  },
   "type": "module",
   "files": [
     "dist",
