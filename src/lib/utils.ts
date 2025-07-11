@@ -528,6 +528,12 @@ export async function findAvailablePort(preferredPort?: number): Promise<number>
  * @returns A promise that resolves to an object with parsed serverUrl, callbackPort and headers
  */
 export async function parseCommandLineArgs(args: string[], usage: string) {
+  // Check for help flags first
+  if (args.includes('--help') || args.includes('-h')) {
+    log(usage)
+    process.exit(0)
+  }
+
   // Process headers
   const headers: Record<string, string> = {}
   let i = 0
