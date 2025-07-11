@@ -1,5 +1,5 @@
 {
-  "name": "cequence/mcp-remote",
+  "name": "@cequence/mcp-remote",
   "version": "0.1.18",
   "description": "Remote proxy for Model Context Protocol, allowing local-only clients to connect to remote servers using oAuth",
   "keywords": [
