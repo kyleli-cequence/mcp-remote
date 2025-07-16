@@ -52,10 +52,10 @@ export class NodeOAuthClientProvider implements OAuthClientProvider {
 
   get clientMetadata() {
     // Conditionally include refresh_token grant type based on noRefresh option
-    const grantTypes = ['authorization_code']
-    if (!this.options.noRefresh) {
-      grantTypes.push('refresh_token')
-    }
+      const grantTypes = ['authorization_code']
+      if (!this.options.noRefresh) {
+        grantTypes.push('refresh_token')
+      }
 
     return {
       redirect_uris: [this.redirectUrl],
