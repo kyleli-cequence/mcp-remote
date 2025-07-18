@@ -443,13 +443,20 @@ export function setupOAuthCallbackServerWithLongPoll(options: OAuthCallbackServe
   })
 
   const waitForAuthCode = (): Promise<string> => {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       if (authCode) {
         resolve(authCode)
         return
       }
 
+      // Set up 5-minute timeout for authentication
+      const authTimeout = setTimeout(() => {
+        log('Authentication timeout reached after 5 minutes')
+        reject(new Error('Authentication timeout: User did not complete authorization within 5 minutes'))
+      }, 5 * 60 * 1000) // 5 minutes
+
       options.events.once('auth-code-received', (code) => {
+        clearTimeout(authTimeout)
         resolve(code)
       })
     })
