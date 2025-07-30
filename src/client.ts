@@ -37,7 +37,6 @@ async function runClient(
   staticOAuthClientMetadata: StaticOAuthClientMetadata,
   staticOAuthClientInfo: StaticOAuthClientInformationFull,
   noRefresh: boolean = false,
-  oauthCallbackTimeoutMs?: number,
 ) {
   // Set up event emitter for auth flow
   const events = new EventEmitter()
@@ -46,7 +45,7 @@ async function runClient(
   const serverUrlHash = getServerUrlHash(serverUrl)
 
   // Create a lazy auth coordinator
-  const authCoordinator = createLazyAuthCoordinator(serverUrlHash, callbackPort, events, oauthCallbackTimeoutMs)
+  const authCoordinator = createLazyAuthCoordinator(serverUrlHash, callbackPort, events)
 
   // Create the OAuth client provider
   const authProvider = new NodeOAuthClientProvider({
@@ -161,9 +160,9 @@ async function runClient(
 }
 
 // Parse command-line arguments and run the client
-parseCommandLineArgs(process.argv.slice(2), 'Usage: npx tsx client.ts <https://server-url> [callback-port] [--debug] [--no-refresh] [--oauth-callback-timeout <seconds>]')
-  .then(({ serverUrl, callbackPort, headers, transportStrategy, host, staticOAuthClientMetadata, staticOAuthClientInfo, noRefresh, oauthCallbackTimeoutMs }) => {
-    return runClient(serverUrl, callbackPort, headers, transportStrategy, host, staticOAuthClientMetadata, staticOAuthClientInfo, noRefresh, oauthCallbackTimeoutMs)
+parseCommandLineArgs(process.argv.slice(2), 'Usage: npx tsx client.ts <https://server-url> [callback-port] [--debug] [--no-refresh]')
+  .then(({ serverUrl, callbackPort, headers, transportStrategy, host, staticOAuthClientMetadata, staticOAuthClientInfo, noRefresh }) => {
+    return runClient(serverUrl, callbackPort, headers, transportStrategy, host, staticOAuthClientMetadata, staticOAuthClientInfo, noRefresh)
   })
   .catch((error) => {
     console.error('Fatal error:', error)

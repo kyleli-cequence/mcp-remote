@@ -637,18 +637,8 @@ export async function parseCommandLineArgs(args: string[], usage: string) {
     log('Token refresh disabled - will not request refresh_token grant type')
   }
 
-  // Parse OAuth callback timeout
-  let oauthCallbackTimeoutMs = 300000 // Default to 300 seconds (5 minutes)
-  const oauthCallbackTimeoutIndex = args.indexOf('--oauth-callback-timeout')
-  if (oauthCallbackTimeoutIndex !== -1 && oauthCallbackTimeoutIndex < args.length - 1) {
-    const timeoutValue = parseInt(args[oauthCallbackTimeoutIndex + 1])
-    if (!isNaN(timeoutValue) && timeoutValue >= 5 && timeoutValue <= 1800) {
-      oauthCallbackTimeoutMs = timeoutValue * 1000 // Convert seconds to milliseconds
-      log(`Using OAuth callback timeout: ${oauthCallbackTimeoutMs / 1000} seconds`)
-    } else {
-      log(`Warning: Invalid OAuth callback timeout value: ${args[oauthCallbackTimeoutIndex + 1]}. Must be between 5-1800 seconds. Using default 300 seconds`)
-    }
-  }
+  // Hardcoded OAuth callback timeout to 5 minutes
+  const oauthCallbackTimeoutMs = 300000 // 5 minutes
 
   if (!serverUrl) {
     log(usage)
@@ -725,7 +715,6 @@ export async function parseCommandLineArgs(args: string[], usage: string) {
     staticOAuthClientInfo,
     authorizeResource,
     noRefresh,
-    oauthCallbackTimeoutMs,
   }
 }
 
