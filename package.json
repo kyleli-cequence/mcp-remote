@@ -1,6 +1,6 @@
 {
   "name": "@cequenceai/mcp-remote",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "Remote proxy for Model Context Protocol, allowing local-only clients to connect to remote servers using oAuth with automatic token refresh",
   "keywords": [
     "mcp",
