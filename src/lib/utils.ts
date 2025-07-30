@@ -387,11 +387,12 @@ export function setupOAuthCallbackServerWithLongPoll(options: OAuthCallbackServe
       return
     }
 
-    // Long poll - wait for up to 30 seconds
+    // Long poll - wait for the configured timeout (default 30 seconds)
+    const timeoutMs = options.longPollTimeoutMs ?? 30000
     const longPollTimeout = setTimeout(() => {
-      log('Long poll timeout reached, responding with 202')
+      log(`Long poll timeout reached after ${timeoutMs}ms, responding with 202`)
       res.status(202).send('Authentication in progress')
-    }, 30000)
+    }, timeoutMs)
 
     // If auth completes while we're waiting, send the response immediately
     authCompletedPromise
@@ -636,6 +637,19 @@ export async function parseCommandLineArgs(args: string[], usage: string) {
     log('Token refresh disabled - will not request refresh_token grant type')
   }
 
+  // Parse long poll timeout
+  let longPollTimeoutMs = 30000 // Default to 30 seconds
+  const longPollTimeoutIndex = args.indexOf('--long-poll-timeout')
+  if (longPollTimeoutIndex !== -1 && longPollTimeoutIndex < args.length - 1) {
+    const timeoutValue = parseInt(args[longPollTimeoutIndex + 1])
+    if (!isNaN(timeoutValue) && timeoutValue > 0) {
+      longPollTimeoutMs = timeoutValue
+      log(`Using long poll timeout: ${longPollTimeoutMs}ms`)
+    } else {
+      log(`Warning: Invalid long poll timeout value: ${args[longPollTimeoutIndex + 1]}. Using default 30000ms`)
+    }
+  }
+
   if (!serverUrl) {
     log(usage)
     process.exit(1)
@@ -711,6 +725,7 @@ export async function parseCommandLineArgs(args: string[], usage: string) {
     staticOAuthClientInfo,
     authorizeResource,
     noRefresh,
+    longPollTimeoutMs,
   }
 }
 
