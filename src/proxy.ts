@@ -37,7 +37,7 @@ async function runProxy(
   staticOAuthClientInfo: StaticOAuthClientInformationFull,
   authorizeResource: string,
   noRefresh: boolean = false,
-  longPollTimeoutMs?: number,
+  oauthCallbackTimeoutMs?: number,
 ) {
   // Set up event emitter for auth flow
   const events = new EventEmitter()
@@ -46,7 +46,7 @@ async function runProxy(
   const serverUrlHash = getServerUrlHash(serverUrl)
 
   // Create a lazy auth coordinator
-  const authCoordinator = createLazyAuthCoordinator(serverUrlHash, callbackPort, events, longPollTimeoutMs)
+  const authCoordinator = createLazyAuthCoordinator(serverUrlHash, callbackPort, events, oauthCallbackTimeoutMs)
 
   // Create the OAuth client provider
   const authProvider = new NodeOAuthClientProvider({
@@ -146,7 +146,7 @@ to the CA certificate file. If using claude_desktop_config.json, this might look
 }
 
 // Parse command-line arguments and run the proxy
-parseCommandLineArgs(process.argv.slice(2), 'Usage: npx tsx proxy.ts <https://server-url> [callback-port] [--debug] [--no-refresh] [--long-poll-timeout <ms>]')
+parseCommandLineArgs(process.argv.slice(2), 'Usage: npx tsx proxy.ts <https://server-url> [callback-port] [--debug] [--no-refresh] [--oauth-callback-timeout <seconds>]')
   .then(
     ({
       serverUrl,
@@ -159,7 +159,7 @@ parseCommandLineArgs(process.argv.slice(2), 'Usage: npx tsx proxy.ts <https://se
       staticOAuthClientInfo,
       authorizeResource,
       noRefresh,
-      longPollTimeoutMs,
+      oauthCallbackTimeoutMs,
     }) => {
       return runProxy(
         serverUrl,
@@ -171,7 +171,7 @@ parseCommandLineArgs(process.argv.slice(2), 'Usage: npx tsx proxy.ts <https://se
         staticOAuthClientInfo,
         authorizeResource,
         noRefresh,
-        longPollTimeoutMs,
+        oauthCallbackTimeoutMs,
       )
     },
   )
